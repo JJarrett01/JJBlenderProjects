@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>3D Model Portfolio</title>
+  <meta name="description" content="My 3D modeling portfolio built with Blender and Three.js" />
+  <style>
+    body {
+      margin: 0;
+      background: #0a0f1a;
+      color: #e6eef6;
+      font-family: Inter, ui-sans-serif, system-ui;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    header {
+      padding: 16px;
+      text-align: center;
+      background: #0e1729;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    header h1 { margin: 0; font-size: 20px; color: #7dd3fc; }
+    header p { margin: 4px 0 0; color: #94a3b8; font-size: 14px; }
+    main {
+      display: flex;
+      flex: 1;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    .viewer {
+      flex: 2 1 600px;
+      background: #0b1220;
+      border-radius: 12px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    }
+    .gallery {
+      flex: 1 1 250px;
+      background: #0b1220;
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+      overflow-y: auto;
+      max-height: 85vh;
+    }
+    .item {
+      background: rgba(255,255,255,0.04);
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.2s;
+    }
+    .item:hover {
+      background: rgba(255,255,255,0.08);
+    }
+    #canvas { flex: 1; border-radius: 8px; display:block; width:100%; height:70vh; background:#000; }
+    footer {
+      text-align: center;
+      padding: 12px;
+      color: #64748b;
+      font-size: 13px;
+      background: #0e1729;
+    }
+    button {
+      background: #1e293b;
+      color: #7dd3fc;
+      border: none;
+      border-radius: 8px;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+    button:hover { background: #334155; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>My Blender 3D Models</h1>
+    <p>Click a model from the list to preview it in 3D</p>
+  </header>
+
+  <main>
+    <div class="viewer">
+      <canvas id="canvas"></canvas>
+    </div>
+
+    <div class="gallery" id="gallery">
+      <p>Loading models...</p>
+    </div>
+  </main>
+
+  <footer>
+    © <span id="year"></span> Your Name — Built with Three.js & Blender
+  </footer>
+
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+    import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+    import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
+
+    // 🧠 EDIT THESE:
+    const GITHUB_USERNAME = 'YOUR_GITHUB_USERNAME';
+    const REPO_NAME = 'your-3d-portfolio'; // folder/repo name
+
+    const gallery = document.getElementById('gallery');
+    const canvas = document.getElementById('canvas');
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Set up Three.js scene
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x060c18);
+    const camera = new THREE.PerspectiveCamera(45, canvas.clientWidth / canvas.clientHeight, 0.1, 100);
+    camera.position.set(0, 1.5, 3);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    const light1 = new THREE.DirectionalLight(0xffffff, 1.0);
+    light1.position.set(2, 4, 3);
+    const light2 = new THREE.AmbientLight(0xffffff, 0.4);
+    scene.add(light1, light2);
+
+    const loader = new GLTFLoader();
+    let currentModel = null;
+
+    async function loadModel(url, name) {
+      if (currentModel) {
+        scene.remove(currentModel);
+        currentModel.traverse(obj => {
+          if (obj.geometry) obj.geometry.dispose();
+          if (obj.material) obj.material.dispose();
+        });
+      }
+      const gltf = await loader.loadAsync(url);
+      const model = gltf.scene;
+      const box = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3()).length();
+      const center = box.getCenter(new THREE.Vector3());
+      model.position.sub(center);
+      model.scale.setScalar(1.5 / size);
+      scene.add(model);
+      currentModel = model;
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    });
+
+    // Load list of models automatically from GitHub repo
+    async function fetchModels() {
+      const apiUrl = `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/models`;
+      const res = await fetch(apiUrl);
+      if (!res.ok) {
+        gallery.innerHTML = `<p style="color:#f87171">Failed to load model list — check repo name in code.</p>`;
+        return;
+      }
+      const files = await res.json();
+      const models = files.filter(f => f.name.endsWith('.glb') || f.name.endsWith('.gltf'));
+      if (models.length === 0) {
+        gallery.innerHTML = `<p>No .glb or .gltf files found in <code>/models</code> folder.</p>`;
+        return;
+      }
+      gallery.innerHTML = '';
+      models.forEach(file => {
+        const item = document.createElement('div');
+        item.className = 'item';
+        item.innerHTML = `<span>${file.name}</span><button>Load</button>`;
+        item.querySelector('button').addEventListener('click', () => {
+          const rawUrl = `https://raw.githubusercontent.com/${GITHUB_USERNAME}/${REPO_NAME}/main/models/${file.name}`;
+          loadModel(rawUrl, file.name);
+        });
+        gallery.appendChild(item);
+      });
+    }
+
+    fetchModels();
+  </script>
+</body>
+</html>
