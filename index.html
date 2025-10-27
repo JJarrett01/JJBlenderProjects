@@ -168,34 +168,25 @@
       renderer.setSize(w, h);
     });
 
-    // Load list of models automatically from GitHub repo
-    async function fetchModels() {
-      const apiUrl = `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/models`;
-      const res = await fetch(apiUrl);
-      if (!res.ok) {
-        gallery.innerHTML = `<p style="color:#f87171">Failed to load model list — check repo name in code.</p>`;
-        return;
-      }
-      const files = await res.json();
-      const models = files.filter(f => f.name.endsWith('.glb') || f.name.endsWith('.gltf'));
-      if (models.length === 0) {
-        gallery.innerHTML = `<p>No .glb or .gltf files found in <code>/models</code> folder.</p>`;
-        return;
-      }
-      gallery.innerHTML = '';
-      models.forEach(file => {
-        const item = document.createElement('div');
-        item.className = 'item';
-        item.innerHTML = `<span>${file.name}</span><button>Load</button>`;
-        item.querySelector('button').addEventListener('click', () => {
-          const rawUrl = `https://raw.githubusercontent.com/${GITHUB_USERNAME}/${REPO_NAME}/main/models/${file.name}`;
-          loadModel(rawUrl, file.name);
-        });
-        gallery.appendChild(item);
-      });
-    }
+   const GITHUB_USERNAME = 'JJarrett01';
+  const REPO_NAME = 'JJBlenderProjects';
+  const apiURL = `https://${GITHUB_USERNAME}.github.io/${REPO_NAME}/models/`;
 
-    fetchModels();
+  // 🧩 List of your model files
+  const models = [
+    'puzzle.glb',
+    // Add more like 'robot.glb', 'car.gltf', etc.
+  ];
+
+  const list = document.getElementById('model-list');
+  list.innerHTML = '';
+
+  models.forEach(model => {
+    const item = document.createElement('li');
+    item.textContent = model;
+    item.onclick = () => loadModel(`${apiURL}${model}`);
+    list.appendChild(item);
+  });
   </script>
 </body>
 </html>
